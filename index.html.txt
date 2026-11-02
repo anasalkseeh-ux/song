@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>موزن النغمات الموسيقية الاحترافي | Audio & Instrument Tuner</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font Cairo -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#0F172A',
+                        cardbg: '#1E293B',
+                        accentGreen: '#10B981',
+                        accentRed: '#EF4444',
+                        accentOrange: '#F59E0B',
+                        accentBlue: '#3B82F6',
+                        neonGreen: '#00FF9D'
+                    },
+                    fontFamily: {
+                        cairo: ['Cairo', 'sans-serif'],
+                        montserrat: ['Montserrat', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+            color: #f8fafc;
+            min-height: 100vh;
+        }
+        .note-font {
+            font-family: 'Montserrat', sans-serif;
+        }
+        /* Glow Effects */
+        .glow-green {
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.4);
+            border-color: #10B981 !important;
+        }
+        .glow-blue {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        .glow-red {
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        /* Custom Needle Transition - Made much smoother and heavily damped */
+        #needle {
+            transition: transform 0.35s ease-out;
+            transform-origin: 50% 90%;
+        }
+        /* Lock pulse animation */
+        @keyframes pulse-green {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .animate-lock {
+            animation: pulse-green 0.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen text-slate-100 selection:bg-blue-600 selection:text-white">
+
+    <!-- Header Navigation -->
+    <header class="w-full py-4 px-6 border-b border-slate-800 glass-panel sticky top-0 z-50 flex justify-between items-center">
+        <div class="flex items-center space-x-3 space-x-reverse">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-emerald-400 flex items-center justify-center text-white shadow-lg">
+                <i class="fa-solid fa-tuning-fork text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">الموزن الموسيقي الذكي</h1>
+                <p class="text-xs text-slate-400">ضبط الصوت والآلات بالتردد المباشر</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center space-x-3 space-x-reverse">
+            <!-- Reference Pitch Selector (A4) -->
+            <div class="flex items-center bg-slate-800/80 rounded-lg px-3 py-1.5 border border-slate-700 text-xs">
+                <span class="text-slate-400 ml-2">A4 =</span>
+                <select id="refPitchSelect" class="bg-transparent text-emerald-400 font-semibold cursor-pointer focus:outline-none">
+                    <option value="440" selected class="bg-slate-800 text-white">440 هرتز (قياسي)</option>
+                    <option value="432" class="bg-slate-800 text-white">432 هرتز (الطبيعي)</option>
+                    <option value="442" class="bg-slate-800 text-white">442 هرتز (أوركسترا)</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Tuner App Container -->
+    <main class="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 flex flex-col items-center justify-between gap-6">
+
+        <!-- Tuner Mode Selector Tabs -->
+        <div class="w-full glass-panel rounded-2xl p-2 flex flex-wrap justify-center gap-2 border border-slate-700/50">
+            <button data-mode="chromatic" class="mode-btn active-mode flex-1 min-w-[110px] py-2 px-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white shadow-md">
+                <i class="fa-solid fa-sliders"></i> موزن شامل (عام)
+            </button>
+            <button data-mode="oud" class="mode-btn flex-1 min-w-[110px] py-2 px-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                <i class="fa-solid fa-guitar"></i> دوزان العود
+            </button>
+            <button data-mode="guitar" class="mode-btn flex-1 min-w-[110px] py-2 px-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                <i class="fa-solid fa-guitar"></i> جيتار (Standard)
+            </button>
+            <button data-mode="violin" class="mode-btn flex-1 min-w-[110px] py-2 px-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                <i class="fa-solid fa-music"></i> كمان
+            </button>
+            <button data-mode="voice" class="mode-btn flex-1 min-w-[110px] py-2 px-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700">
+                <i class="fa-solid fa-microphone-lines"></i> الصوت البشري
+            </button>
+        </div>
+
+        <!-- Main Display Panel -->
+        <div class="w-full glass-panel rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center relative overflow-hidden border border-slate-700/60 shadow-2xl">
+            
+            <!-- Target Note Hint Bar (Visible in preset modes) -->
+            <div id="stringPresetBar" class="hidden w-full mb-6 flex justify-center gap-2 sm:gap-3 flex-wrap">
+                <!-- Instrument string buttons inserted by JS -->
+            </div>
+
+            <!-- Pitch Gauge Display (SVG Needle Gauge) -->
+            <div class="relative w-full max-w-[340px] h-[190px] flex justify-center items-center">
+                <svg class="w-full h-full" viewBox="0 0 300 170">
+                    <!-- Meter Background Arc -->
+                    <path d="M 30 150 A 120 120 0 0 1 270 150" fill="none" stroke="#334155" stroke-width="14" stroke-linecap="round" />
+                    <!-- Perfect Tune Center Arc Zone -->
+                    <path id="centerArcZone" d="M 135 33 A 120 120 0 0 1 165 33" fill="none" stroke="#10B981" stroke-width="16" opacity="0.4" stroke-linecap="round" />
+                    
+                    <!-- Gauge Ticks & Numbers -->
+                    <!-- Flat Side Ticks -->
+                    <line x1="30" y1="150" x2="42" y2="142" stroke="#64748B" stroke-width="3" />
+                    <text x="20" y="165" fill="#94A3B8" font-size="11" text-anchor="middle" font-family="Montserrat">-50</text>
+
+                    <line x1="75" y1="75" x2="84" y2="82" stroke="#64748B" stroke-width="3" />
+                    <text x="63" y="73" fill="#94A3B8" font-size="11" text-anchor="middle" font-family="Montserrat">-25</text>
+
+                    <!-- Center Perfect Tick -->
+                    <line x1="150" y1="30" x2="150" y2="42" stroke="#10B981" stroke-width="4" />
+                    <text x="150" y="20" fill="#10B981" font-size="12" font-weight="bold" text-anchor="middle" font-family="Montserrat">0</text>
+
+                    <!-- Sharp Side Ticks -->
+                    <line x1="225" y1="75" x2="216" y2="82" stroke="#64748B" stroke-width="3" />
+                    <text x="237" y="73" fill="#94A3B8" font-size="11" text-anchor="middle" font-family="Montserrat">+25</text>
+
+                    <line x1="270" y1="150" x2="258" y2="142" stroke="#64748B" stroke-width="3" />
+                    <text x="280" y="165" fill="#94A3B8" font-size="11" text-anchor="middle" font-family="Montserrat">+50</text>
+
+                    <!-- Dynamic Needle Indicator -->
+                    <g id="needle" transform="rotate(0, 150, 150)">
+                        <polygon points="147,150 153,150 150,35" fill="#38BDF8" />
+                        <circle cx="150" cy="150" r="10" fill="#0EA5E9" />
+                        <circle cx="150" cy="150" r="4" fill="#FFFFFF" />
+                    </g>
+                </svg>
+
+                <!-- Status Text Glow Badge -->
+                <div id="tuneStatusBadge" class="absolute bottom-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5">
+                    <i class="fa-solid fa-microphone-slash text-slate-500"></i>
+                    <span>مستعد للالتقاط</span>
+                </div>
+            </div>
+
+            <!-- Note Name Box Display -->
+            <div id="noteDisplayContainer" class="my-4 flex flex-col items-center justify-center">
+                <div id="noteBox" class="w-32 h-32 sm:w-36 sm:h-36 rounded-3xl bg-slate-800/90 border-2 border-slate-700 flex flex-col items-center justify-center transition-all duration-300 shadow-xl relative">
+                    <span id="lockIcon" class="absolute top-2 right-3 text-emerald-400 text-xs hidden"><i class="fa-solid fa-lock"></i> تم الضبط</span>
+                    <span id="detectedNote" class="note-font text-5xl sm:text-6xl font-extrabold text-slate-400 tracking-tight">--</span>
+                    <span id="detectedNoteAr" class="text-xs text-slate-400 font-semibold mt-0.5"></span>
+                </div>
+                <!-- Frequency Hz Display -->
+                <div class="mt-3 flex items-center gap-2">
+                    <span id="detectedFreq" class="note-font text-2xl font-bold text-slate-200">0.0</span>
+                    <span class="text-xs text-slate-400 font-semibold">هرتز (Hz)</span>
+                </div>
+                <!-- Difference Cents Display -->
+                <div id="centsDisplay" class="text-xs font-semibold text-slate-400 mt-1">
+                    انحراف النغمة: <span id="centsValue" class="note-font dir-ltr font-bold text-slate-300">0</span> Cents
+                </div>
+            </div>
+
+            <!-- Start / Stop Listening Button -->
+            <div class="mt-2 w-full max-w-xs">
+                <button id="micToggleBtn" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white font-bold text-lg shadow-xl hover:shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 transform active:scale-95">
+                    <i class="fa-solid fa-microphone"></i>
+                    <span id="micBtnText">تشغيل الميكروفون</span>
+                </button>
+            </div>
+            
+            <p id="micStatusHelp" class="text-xs text-slate-400 mt-3 text-center">
+                اضغط لتفعيل الميكروفون ثم اعزف النوتة أو غَنّ بالقرب من جهازك
+            </p>
+        </div>
+
+        <!-- Tone Generator / Reference Audio Tool -->
+        <div class="w-full glass-panel rounded-2xl p-5 border border-slate-700/50">
+            <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-200">مولد النغمات المرجعية (Tune Sound)</h3>
+                        <p class="text-xs text-slate-400">استمع للنغمة الصحيحة لضبط الصوت بالأذن</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <select id="toneNoteSelect" class="bg-slate-800 text-slate-200 border border-slate-700 rounded-xl px-3 py-2 text-sm font-semibold focus:outline-none focus:border-blue-500 flex-1 sm:flex-none">
+                        <!-- Standard chromatic note options added via JS -->
+                    </select>
+
+                    <button id="playToneBtn" class="py-2 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-emerald-400 font-bold text-sm transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play" id="playToneIcon"></i>
+                        <span id="playToneText">تشغيل</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="w-full py-4 text-center text-xs text-slate-400 border-t border-slate-800/80 glass-panel">
+        الموزن الموسيقي التفاعلي &copy; 2026 | مصمم بتقنيات تحليل التردد المباشر (Web Audio API)
+    </footer>
+
+    <!-- Audio Pitch Processing Script -->
+    <script>
+        // Note standard constants
+        const NOTE_NAMES_EN = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const NOTE_NAMES_AR = ["دو (C)", "دو شارف (C#)", "ري (D)", "ري شارف (D#)", "مي (E)", "فا (F)", "فا شارف (F#)", "صول (G)", "صول شارف (G#)", "لا (A)", "لا شارف (A#)", "سي (B)"];
+        
+        // Instrument Presets Definitions
+        const PRESETS = {
+            chromatic: { title: "عام", notes: [] },
+            oud: { 
+                title: "العود (Arabic Oud Standard)", 
+                notes: [
+                    { name: "C2", freq: 65.41, label: "1: القرار (دو)" },
+                    { name: "F2", freq: 87.31, label: "2: العشيران (فا)" },
+                    { name: "A2", freq: 110.00, label: "3: النوى (لا)" },
+                    { name: "D3", freq: 146.83, label: "4: الدوكاه (ري)" },
+                    { name: "G3", freq: 196.00, label: "5: الكردان (صول)" },
+                    { name: "C4", freq: 261.63, label: "6: الجواب (دو)" }
+                ]
+            },
+            guitar: {
+                title: "جيتار (Standard Guitar)",
+                notes: [
+                    { name: "E2", freq: 82.41, label: "6: E2" },
+                    { name: "A2", freq: 110.00, label: "5: A2" },
+                    { name: "D3", freq: 146.83, label: "4: D3" },
+                    { name: "G3", freq: 196.00, label: "3: G3" },
+                    { name: "B3", freq: 246.94, label: "2: B3" },
+                    { name: "E4", freq: 329.63, label: "1: E4" }
+                ]
+            },
+            violin: {
+                title: "كمان (Violin Standard)",
+                notes: [
+                    { name: "G3", freq: 196.00, label: "4: G3" },
+                    { name: "D4", freq: 293.66, label: "3: D4" },
+                    { name: "A4", freq: 440.00, label: "2: A4" },
+                    { name: "E5", freq: 659.25, label: "1: E5" }
+                ]
+            },
+            voice: {
+                title: "الصوت البشري (Vocal Pitch)",
+                notes: []
+            }
+        };
+
+        // Audio Context & Global State Variables
+        let audioCtx = null;
+        let analyser = null;
+        let micStream = null;
+        let isListening = false;
+        let currentMode = 'chromatic';
+        let referenceA4 = 440;
+        
+        // Pitch Smoothing & Stability Locks State Variables
+        let smoothedCents = 0;
+        let smoothedFreq = 0;
+        const SMOOTHING_FACTOR = 0.15; // Low value = smoother & slower needle
+        let inTuneCounter = 0;
+        const STABILITY_THRESHOLD_FRAMES = 12; // Frames needed to trigger lock
+        let isTuneLocked = false;
+
+        // Tone Generator State
+        let toneOscillator = null;
+        let isPlayingTone = false;
+
+        // DOM Elements
+        const micToggleBtn = document.getElementById('micToggleBtn');
+        const micBtnText = document.getElementById('micBtnText');
+        const micStatusHelp = document.getElementById('micStatusHelp');
+        const detectedNote = document.getElementById('detectedNote');
+        const detectedNoteAr = document.getElementById('detectedNoteAr');
+        const detectedFreq = document.getElementById('detectedFreq');
+        const centsValue = document.getElementById('centsValue');
+        const needle = document.getElementById('needle');
+        const noteBox = document.getElementById('noteBox');
+        const tuneStatusBadge = document.getElementById('tuneStatusBadge');
+        const lockIcon = document.getElementById('lockIcon');
+        const centerArcZone = document.getElementById('centerArcZone');
+        const stringPresetBar = document.getElementById('stringPresetBar');
+        const refPitchSelect = document.getElementById('refPitchSelect');
+        const toneNoteSelect = document.getElementById('toneNoteSelect');
+        const playToneBtn = document.getElementById('playToneBtn');
+        const playToneIcon = document.getElementById('playToneIcon');
+        const playToneText = document.getElementById('playToneText');
+
+        // Populate Tone Generator Selector
+        function initToneGeneratorSelect() {
+            toneNoteSelect.innerHTML = '';
+            for (let octave = 2; octave <= 5; octave++) {
+                NOTE_NAMES_EN.forEach((note, index) => {
+                    const option = document.createElement('option');
+                    const noteFull = `${note}${octave}`;
+                    const freq = calculateFrequency(index, octave, referenceA4);
+                    option.value = freq;
+                    option.textContent = `${noteFull} (${NOTE_NAMES_AR[index].split(' ')[0]}) - ${Math.round(freq)} Hz`;
+                    if (noteFull === "A4") option.selected = true;
+                    toneNoteSelect.appendChild(option);
+                });
+            }
+        }
+
+        // Helper to calculate exact note frequency based on A4 reference
+        function calculateFrequency(noteIndex, octave, refA4 = 440) {
+            const semitonesFromA4 = (noteIndex - 9) + (octave - 4) * 12;
+            return refA4 * Math.pow(2, semitonesFromA4 / 12);
+        }
+
+        // Auto-correlation Algorithm for Pitch Detection with Noise Gate Threshold
+        function autoCorrelate(buf, sampleRate) {
+            let SIZE = buf.length;
+            let rms = 0;
+
+            for (let i = 0; i < SIZE; i++) {
+                let val = buf[i];
+                rms += val * val;
+            }
+            rms = Math.sqrt(rms / SIZE);
+
+            // Noise Gate: Ignore ambient noise below 0.025 threshold
+            if (rms < 0.025) return -1;
+
+            let r1 = 0, r2 = SIZE - 1, thres = 0.2;
+            for (let i = 0; i < SIZE / 2; i++) {
+                if (Math.abs(buf[i]) < thres) {
+                    r1 = i;
+                    break;
+                }
+            }
+            for (let i = 1; i < SIZE / 2; i++) {
+                if (Math.abs(buf[SIZE - i]) < thres) {
+                    r2 = SIZE - i;
+                    break;
+                }
+            }
+
+            buf = buf.slice(r1, r2);
+            SIZE = buf.length;
+
+            let c = new Array(SIZE).fill(0);
+            for (let i = 0; i < SIZE; i++) {
+                for (let j = 0; j < SIZE - i; j++) {
+                    c[i] = c[i] + buf[j] * buf[j + i];
+                }
+            }
+
+            let d = 0;
+            while (c[d] > c[d + 1]) d++;
+            let maxval = -1, maxpos = -1;
+            for (let i = d; i < SIZE; i++) {
+                if (c[i] > maxval) {
+                    maxval = c[i];
+                    maxpos = i;
+                }
+            }
+
+            let T0 = maxpos;
+            let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
+            let a = (x1 + x3 - 2 * x2) / 2;
+            let b = (x3 - x1) / 2;
+            if (a) T0 = T0 - b / (2 * a);
+
+            return sampleRate / T0;
+        }
+
+        // Convert Frequency to Musical Note Data
+        function getNoteFromFrequency(freq) {
+            const noteNum = 12 * (Math.log(freq / referenceA4) / Math.log(2));
+            const noteIndex = Math.round(noteNum) + 69; // 69 is A4 MIDI note
+            
+            const octave = Math.floor(noteIndex / 12) - 1;
+            const noteName = NOTE_NAMES_EN[noteIndex % 12];
+            const noteNameAr = NOTE_NAMES_AR[noteIndex % 12];
+            
+            // Expected perfect frequency for this note
+            const expectedFreq = referenceA4 * Math.pow(2, (noteIndex - 69) / 12);
+            
+            // Cents offset calculation (-50 to +50)
+            const cents = Math.floor(1200 * Math.log2(freq / expectedFreq));
+
+            return {
+                name: noteName + octave,
+                nameAr: noteNameAr,
+                cents: cents,
+                rawFreq: freq
+            };
+        }
+
+        // Start Analyzing Pitch Loop
+        function updatePitch() {
+            const buffer = new Float32Array(2048);
+            analyser.getFloatTimeDomainData(buffer);
+            const pitch = autoCorrelate(buffer, audioCtx.sampleRate);
+
+            if (pitch === -1 || pitch < 40 || pitch > 2000) {
+                // Low signal / Quiet state - decay smoothed values slowly
+                inTuneCounter = 0;
+                isTuneLocked = false;
+                lockIcon.classList.add('hidden');
+                centerArcZone.setAttribute('opacity', '0.4');
+
+                tuneStatusBadge.innerHTML = `<i class="fa-solid fa-waveform text-slate-500"></i> <span>اعزف أو غَنّ في الميكروفون...</span>`;
+                tuneStatusBadge.className = "absolute bottom-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-800 text-slate-400 border border-slate-700 flex items-center gap-1.5";
+            } else {
+                const rawNoteData = getNoteFromFrequency(pitch);
+
+                // Apply Exponential Moving Average Smoothing
+                if (smoothedFreq === 0) {
+                    smoothedFreq = rawNoteData.rawFreq;
+                    smoothedCents = rawNoteData.cents;
+                } else {
+                    smoothedFreq += (rawNoteData.rawFreq - smoothedFreq) * SMOOTHING_FACTOR;
+                    smoothedCents += (rawNoteData.cents - smoothedCents) * SMOOTHING_FACTOR;
+                }
+
+                updateUI(rawNoteData.name, rawNoteData.nameAr, smoothedFreq, smoothedCents);
+            }
+
+            if (isListening) {
+                requestAnimationFrame(updatePitch);
+            }
+        }
+
+        // Short Beep Tone for Tuning Lock Feedback
+        function triggerLockBeep() {
+            if (!audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const g = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime); // A5 note
+                g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+                osc.connect(g);
+                g.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.15);
+            } catch (e) {
+                // Ignore audio autoplay restrictions if any
+            }
+        }
+
+        // Update Gauge & UI Elements
+        function updateUI(noteName, noteNameAr, freq, cents) {
+            // Update Text Displays
+            detectedNote.textContent = noteName;
+            detectedNoteAr.textContent = noteNameAr;
+            detectedFreq.textContent = freq.toFixed(1);
+            
+            const displayCents = Math.round(cents);
+            centsValue.textContent = (displayCents > 0 ? `+${displayCents}` : `${displayCents}`);
+
+            // Update Needle Rotation (-50 cents = -85deg, 0 cents = 0deg, +50 cents = +85deg)
+            let clampedCents = Math.max(-50, Math.min(50, cents));
+            let needleAngle = (clampedCents / 50) * 85; 
+            needle.style.transform = `rotate(${needleAngle}deg)`;
+
+            // Check Tuning Accuracy & Handle Lock State
+            if (Math.abs(cents) <= 4) {
+                inTuneCounter++;
+                if (inTuneCounter >= STABILITY_THRESHOLD_FRAMES && !isTuneLocked) {
+                    isTuneLocked = true;
+                    triggerLockBeep();
+                }
+            } else {
+                inTuneCounter = 0;
+                isTuneLocked = false;
+            }
+
+            // Visual Colors & Status Feedback
+            if (isTuneLocked || Math.abs(cents) <= 4) {
+                // Perfect Tune - Solid Green & Lock Glow
+                noteBox.className = "w-32 h-32 sm:w-36 sm:h-36 rounded-3xl bg-slate-800 border-2 border-emerald-400 flex flex-col items-center justify-center transition-all duration-300 glow-green animate-lock relative";
+                detectedNote.className = "note-font text-5xl sm:text-6xl font-extrabold text-emerald-400 tracking-tight";
+                lockIcon.classList.remove('hidden');
+                centerArcZone.setAttribute('opacity', '1');
+
+                tuneStatusBadge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> <span>مضبوطة تماماً! (Perfect Lock)</span>`;
+                tuneStatusBadge.className = "absolute bottom-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 glow-green";
+            } else {
+                lockIcon.classList.add('hidden');
+                centerArcZone.setAttribute('opacity', '0.4');
+
+                if (cents < -4) {
+                    // Flat (Low) - Amber / Blue
+                    noteBox.className = "w-32 h-32 sm:w-36 sm:h-36 rounded-3xl bg-slate-800 border-2 border-amber-500/80 flex flex-col items-center justify-center transition-all duration-300 glow-blue relative";
+                    detectedNote.className = "note-font text-5xl sm:text-6xl font-extrabold text-amber-400 tracking-tight";
+                    
+                    tuneStatusBadge.innerHTML = `<i class="fa-solid fa-arrow-up text-amber-400"></i> <span>منخفضة (Flat) - شدّ الوتر بحذر</span>`;
+                    tuneStatusBadge.className = "absolute bottom-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-amber-500/20 text-amber-300 border border-amber-500/40";
+                } else {
+                    // Sharp (High) - Red
+                    noteBox.className = "w-32 h-32 sm:w-36 sm:h-36 rounded-3xl bg-slate-800 border-2 border-rose-500/80 flex flex-col items-center justify-center transition-all duration-300 glow-red relative";
+                    detectedNote.className = "note-font text-5xl sm:text-6xl font-extrabold text-rose-400 tracking-tight";
+                    
+                    tuneStatusBadge.innerHTML = `<i class="fa-solid fa-arrow-down text-rose-400"></i> <span>مرتفعة (Sharp) - أرخِ الوتر بحذر</span>`;
+                    tuneStatusBadge.className = "absolute bottom-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all bg-rose-500/20 text-rose-300 border border-rose-500/40";
+                }
+            }
+        }
+
+        // Toggle Microphone Listening
+        async function toggleMicrophone() {
+            if (isListening) {
+                // Stop Microphone
+                if (micStream) {
+                    micStream.getTracks().forEach(track => track.stop());
+                }
+                isListening = false;
+                smoothedFreq = 0;
+                smoothedCents = 0;
+                micToggleBtn.className = "w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white font-bold text-lg shadow-xl transition-all duration-200 flex items-center justify-center gap-3";
+                micBtnText.textContent = "تشغيل الميكروفون";
+                micStatusHelp.textContent = "تم إيقاف الميكروفون. اضغط للبدء مجدداً.";
+                return;
+            }
+
+            try {
+                // Initialize Audio Context
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+                
+                const source = audioCtx.createMediaStreamSource(micStream);
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 4096;
+                source.connect(analyser);
+
+                isListening = true;
+                micToggleBtn.className = "w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-rose-600 to-red-500 hover:from-rose-500 hover:to-red-400 text-white font-bold text-lg shadow-xl transition-all duration-200 flex items-center justify-center gap-3";
+                micBtnText.textContent = "إيقاف الميكروفون";
+                micStatusHelp.textContent = "الميكروفون يعمل الآن. اعزف نغمتك ببطء لاستقرار المؤشر.";
+
+                updatePitch();
+            } catch (err) {
+                alert("تعذر الوصول إلى الميكروفون. يرجى التأكد من منح الإذن في متصفحك.");
+                console.error("Microphone Access Error:", err);
+            }
+        }
+
+        // Switch Instrument Mode & Presets
+        function setPresetMode(modeKey) {
+            currentMode = modeKey;
+            const preset = PRESETS[modeKey];
+            
+            // Update Mode Selector Active Buttons Styling
+            document.querySelectorAll('.mode-btn').forEach(btn => {
+                if (btn.dataset.mode === modeKey) {
+                    btn.className = "mode-btn active-mode flex-1 min-w-[110px] py-2 px-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-blue-600 text-white shadow-md";
+                } else {
+                    btn.className = "mode-btn flex-1 min-w-[110px] py-2 px-3 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-slate-800 text-slate-300 hover:bg-slate-700";
+                }
+            });
+
+            // Display Preset Strings Bar if applicable
+            stringPresetBar.innerHTML = '';
+            if (preset.notes && preset.notes.length > 0) {
+                stringPresetBar.classList.remove('hidden');
+                preset.notes.forEach(noteObj => {
+                    const btn = document.createElement('button');
+                    btn.className = "py-1.5 px-3 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition-all flex items-center gap-1.5";
+                    btn.innerHTML = `<span class="text-blue-400 note-font">${noteObj.name}</span> <span>(${noteObj.label})</span>`;
+                    btn.onclick = () => playReferenceTone(noteObj.freq);
+                    stringPresetBar.appendChild(btn);
+                });
+            } else {
+                stringPresetBar.classList.add('hidden');
+            }
+        }
+
+        // Tone Generator Sound Player
+        function playReferenceTone(freq) {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            if (isPlayingTone) {
+                stopReferenceTone();
+            }
+
+            toneOscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            toneOscillator.type = 'sine';
+            toneOscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+            gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            
+            toneOscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            toneOscillator.start();
+            isPlayingTone = true;
+
+            playToneBtn.className = "py-2 px-5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm transition-all flex items-center justify-center gap-2";
+            playToneIcon.className = "fa-solid fa-stop";
+            playToneText.textContent = "إيقاف";
+        }
+
+        function stopReferenceTone() {
+            if (toneOscillator) {
+                toneOscillator.stop();
+                toneOscillator.disconnect();
+                toneOscillator = null;
+            }
+            isPlayingTone = false;
+
+            playToneBtn.className = "py-2 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-emerald-400 font-bold text-sm transition-all flex items-center justify-center gap-2";
+            playToneIcon.className = "fa-solid fa-play";
+            playToneText.textContent = "تشغيل";
+        }
+
+        // Event Listeners
+        micToggleBtn.addEventListener('click', toggleMicrophone);
+
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => setPresetMode(btn.dataset.mode));
+        });
+
+        refPitchSelect.addEventListener('change', (e) => {
+            referenceA4 = parseFloat(e.target.value);
+            initToneGeneratorSelect();
+        });
+
+        playToneBtn.addEventListener('click', () => {
+            if (isPlayingTone) {
+                stopReferenceTone();
+            } else {
+                const selectedFreq = parseFloat(toneNoteSelect.value);
+                playReferenceTone(selectedFreq);
+            }
+        });
+
+        // Initialize App
+        window.onload = () => {
+            initToneGeneratorSelect();
+            setPresetMode('chromatic');
+        };
+    </script>
+</body>
+</html>
